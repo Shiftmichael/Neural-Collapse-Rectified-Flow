@@ -345,8 +345,8 @@ def mix_and_shuffle_batches(batch_generated, batch_real, real_ratio=0.5):
     batch_size_real = x0_real.size(0)
 
     #test 
-    print(f"{batch_size_gen == x1_gen.size(0)}")
-    print(f"{batch_size_real == x1_real.size(0)}")
+    # print(f"{batch_size_gen == x1_gen.size(0)}")
+    # print(f"{batch_size_real == x1_real.size(0)}")
 
     # 确保real_ratio在合理范围内
     real_ratio = max(0.0, min(real_ratio, 1.0))
@@ -391,6 +391,97 @@ def mix_and_shuffle_batches(batch_generated, batch_real, real_ratio=0.5):
         mixed_x1 = torch.empty(0, *x1_gen.shape[1:], device=x1_gen.device)
 
     return mixed_x0, mixed_x1
+
+def batch_generate_image_pairs(model, device, batch_size=64):
+    """
+    Generates a batch of noise and generated image pairs.
+
+    Args:
+        model (torch.nn.Module): The trained model.
+        device (torch.device): The computation device.
+        batch_size (int): Number of samples to generate.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: Tensors of noise images and generated images.
+    """
+    model.eval()
+    model_ = copy.deepcopy(model).to(device)
+    
+    node = NeuralODE(model_, solver="euler", sensitivity="adjoint")
+    
+    with torch.no_grad():
+        # Generate 'batch_size' number of noise images
+        noise = torch.randn(batch_size, 3, 32, 32, device=device)
+        # Generate images through the model
+        traj = node.trajectory(noise, t_span=torch.linspace(0, 1, 100, device=device))[-1]
+        generated = traj.view(-1, 3, 32, 32).clamp(-1, 1)
+    
+    model.train()
+    return noise.cpu(), generated.cpu()
+
+def batch_generate_real_image_pairs(model, device, method='ode', batch_size=64, cifar_root='./data', sde_noise_std=1e-3, randomize_steps=False):
+    """
+    Generates a batch of noise-image pairs by inversely feeding real images into the model.
+
+    Args:
+        model (torch.nn.Module): The trained model.
+        device (torch.device): The computation device.
+        method (str): 'ode' or 'sde' inversion method.
+        batch_size (int): Number of samples to generate.
+        cifar_root (str): Root directory for CIFAR-10 data.
+        sde_noise_std (float): Noise standard deviation for SDE inversion.
+        randomize_steps (bool): Whether to randomize integration steps in SDE inversion.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: Tensors of noise images and real images.
+    """
+    assert method in ['ode', 'sde'], "Method must be 'ode' or 'sde'."
+
+    model.eval()
+    model_ = copy.deepcopy(model).to(device)
+
+    if method == 'ode':
+        node = NeuralODE(model_, solver="euler", sensitivity="adjoint")
+    elif method == 'sde':
+        node = NeuralSDE(model_, solver="euler", sensitivity="adjoint", noise_std=sde_noise_std, randomize_steps=randomize_steps)
+    else:
+        raise ValueError("Unsupported method. Choose 'ode' or 'sde'.")
+
+    # Define transformations for CIFAR-10 images
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))  # Normalize to [-1, 1]
+    ])
+
+    # Load the CIFAR-10 dataset
+    cifar_dataset = datasets.CIFAR10(root=cifar_root, train=True, download=True, transform=transform)
+    cifar_length = len(cifar_dataset)
+    # Randomly select 'batch_size' images
+    indices = torch.randperm(cifar_length)[:batch_size]
+    subset = Subset(cifar_dataset, indices)
+    dataloader = DataLoader(subset, batch_size=batch_size, shuffle=False)
+
+    with torch.no_grad():
+        for batch in dataloader:
+            images, _ = batch  # Ignore labels
+            images = images.to(device)
+
+            if method == 'ode':
+                # Integrate backward from t=1 to t=0
+                traj = node.trajectory(images, t_span=torch.linspace(1, 0, 100, device=device))[-1]
+                noise = traj.view(-1, 3, 32, 32)
+            elif method == 'sde':
+                # Integrate backward with stochasticity
+                traj = node.trajectory(images, t_span=torch.linspace(1, 0, 100, device=device))
+                noise = traj[-1].view(-1, 3, 32, 32)
+            else:
+                raise ValueError("Unsupported method. Choose 'ode' or 'sde'.")
+            break  # Only need one batch
+
+    model.train()
+    return noise.cpu(), images.cpu()
+
+
 
 # class ImageDataset(Dataset):
 #     def __init__(self, noise, generated):

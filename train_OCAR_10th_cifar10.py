@@ -78,7 +78,7 @@ def train(rank, total_num_gpus, argv):
 
     for reflow_step in range(FLAGS.reflow_times):
         print(
-            f"reflow_step: {reflow_step}, lr: {FLAGS.lr}, total_steps: {FLAGS.total_steps}, ema decay: {FLAGS.ema_decay}, save_step: {FLAGS.save_step}",
+            f"reflow_step: {reflow_step}, lr: {FLAGS.lr}, total_steps: {FLAGS.total_steps}, ema decay: {FLAGS.ema_decay}, save_step: {FLAGS.save_step}, batch_size: {FLAGS.batch_size}, real_ratio: {FLAGS.real_ratio}",
         )
 
 
@@ -282,7 +282,7 @@ def train(rank, total_num_gpus, argv):
                                 savedir + f"reflow_{reflow_step+1}_{global_step // 10000}.pt",
                             )
 
-                if epoch % 2 == 0:
+                if  epoch % 2 == 0:
                     real_data = generate_real_image_pairs(
                         model=net_model,
                         device=device,

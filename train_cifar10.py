@@ -11,7 +11,7 @@ from absl import app, flags
 from torchdyn.core import NeuralODE
 from torchvision import datasets, transforms
 from tqdm import trange
-from utils_cifar import ema, generate_samples
+from examples.images.cifar10.utils_cifar import ema, generate_samples
 
 from torchcfm.conditional_flow_matching import (
     ConditionalFlowMatcher,
@@ -59,6 +59,7 @@ def infiniteloop(dataloader):
     while True:
         for x, y in iter(dataloader):
             yield x
+
 
 def train(argv):
     print(
