@@ -20,7 +20,7 @@ from torchcfm.conditional_flow_matching import (
     TargetConditionalFlowMatcher,
     VariancePreservingConditionalFlowMatcher,
 )
-from torchcfm.models.unet.unet import UNetModelWrapper
+from torchcfm.models.unet.unet import UNetModelWrapperx
 # from utils_reflow.compute_fid import calculate_fid_ddp
 from utils_reflow.utils import seed_everything, batch_generate_image_pairs, batch_generate_real_image_pairs, mix_and_shuffle_batches
 

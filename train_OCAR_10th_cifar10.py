@@ -39,7 +39,7 @@ flags.DEFINE_integer("num_channel", 128, help="base channel of UNet")
 flags.DEFINE_float("lr", 5e-4, help="target learning rate")  # TRY 2e-4
 flags.DEFINE_float("grad_clip", 1.0, help="gradient norm clipping")
 flags.DEFINE_integer(
-    "total_steps", 80001, help="total training steps"
+    "total_steps", 40001, help="total training steps"
 )  # Lipman et al uses 400k but double batch size
 flags.DEFINE_integer("warmup", 10000, help="learning rate warmup")
 flags.DEFINE_integer("batch_size", 128, help="batch size")  # Lipman et al uses 128
@@ -68,6 +68,12 @@ def warmup_lr(step):
 
 def train(rank, total_num_gpus, argv):
     seed_everything(42 + rank)
+    real_ratio = f"{FLAGS.real_ratio:.0e}"
+    parts = real_ratio.split('e')
+    real_ratio= f"{parts[0]}e{int(parts[1])}"
+    savedir = FLAGS.output_dir + f"OCRA_{real_ratio}" + "/"
+    os.makedirs(savedir, exist_ok=True)
+
     if FLAGS.parallel and total_num_gpus > 1:
         # When using `DistributedDataParallel`, we need to divide the batch
         # size ourselves based on the total number of GPUs of the current node.
@@ -83,7 +89,7 @@ def train(rank, total_num_gpus, argv):
 
 
         # MODELS
-        checkpoint_path = "results/OCRA/" + f"reflow_{reflow_step}_8.pt"
+        checkpoint_path = "results/OCRA/" + f"reflow_{reflow_step}_4.pt"
         checkpoint = torch.load(checkpoint_path, map_location=f'cuda:{rank}')
         print("Load, dowm")
 
@@ -204,8 +210,8 @@ def train(rank, total_num_gpus, argv):
                 f"Unknown model {FLAGS.model}, must be one of ['otcfm', 'icfm', 'fm', 'si']"
             )
 
-        savedir = FLAGS.output_dir + "OCRA" + "/"
-        os.makedirs(savedir, exist_ok=True)
+        # savedir = FLAGS.output_dir + "OCRA" + "/"
+        # os.makedirs(savedir, exist_ok=True)
 
         global_step = 0  # to keep track of the global step in training loop
 
