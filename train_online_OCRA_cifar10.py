@@ -20,7 +20,7 @@ from torchcfm.conditional_flow_matching import (
     TargetConditionalFlowMatcher,
     VariancePreservingConditionalFlowMatcher,
 )
-from torchcfm.models.unet.unet import UNetModelWrapperx
+from torchcfm.models.unet.unet import UNetModelWrapper
 # from utils_reflow.compute_fid import calculate_fid_ddp
 from utils_reflow.utils import seed_everything, batch_generate_image_pairs, batch_generate_real_image_pairs, mix_and_shuffle_batches
 
@@ -52,7 +52,7 @@ flags.DEFINE_string(
 flags.DEFINE_string("master_port", "12355", help="master port for Distributed Data Parallel")
 flags.DEFINE_integer("local_rank", 0, "Local rank of the process in distributed training")
 # flags.DEFINE_integer("reflow_times", 10, "Reflow times")
-flags.DEFINE_string("huber", help="loss: [huber, l2]")
+flags.DEFINE_string("loss", "huber", help="loss: [huber, l2]")
 flags.DEFINE_float("real_ratio", 0.5, help="real ratio")
 
 # Evaluation
@@ -268,13 +268,13 @@ def main(argv):
 if __name__ == "__main__":
     app.run(main)
 
-# CUDA_VISIBLE_DEVICES=0 python -m torch.distributed.launch \
-#     --nproc_per_node=1 \
+# CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.launch \
+#     --nproc_per_node=2 \
 #     --nnodes=1 \
 #     --node_rank=0 \
 #     --master_addr="localhost" \
 #     --master_port=12356 \
-#     train_OCAR_10th_cifar10.py
+#     train_online_OCRA_cifar10.py
 
 
 
